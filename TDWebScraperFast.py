@@ -7,15 +7,41 @@ from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import os
 import time
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+def save_i_to_file(i, save_dir):
+    # Use 'w' mode to overwrite the file content with the new value of 'i'
+    with open(os.path.join(save_dir, "i.txt"), 'w') as file:
+        file.write(str(i))
+
+def load_i_from_file(save_dir):
+    file_path = os.path.join(save_dir, "i.txt")
+    # Check if the file exists
+    if os.path.exists(file_path):
+        # Use 'r' mode to read the file content
+        with open(file_path, 'r') as file:
+            content = file.read()
+            return int(content)
+    return 0  # If the file does not exist, return 0
+
+# Get last day of last month's date and save as string
+now = datetime.now()
+last_month = now - relativedelta(months=1)
+last_day_of_last_month = (now.replace(day=1) - relativedelta(days=1)).day
+date_str = f"{last_month.month:02d}{last_day_of_last_month:02d}{last_month.year}"
 
 # initialize the driver
 options = Options()
 
-#************************#
-#IMPORTANT AND ONLY STEP WITHIN CODE:
-#CHANGE THIS FILE PATH TO APPROPRIATE DIRECTORY, DO SO WITHIN QUOTATIONS, DO NOT REMOVE THE r BEFORE QUOTES
-save_dir = r"C:\NxID\Dad\Statements"
-#************************#
+#check if save directory already exists or create it
+dir_name = f"Statements{date_str}"
+save_dir = os.path.join(os.getcwd(), dir_name)
+
+# Check if the directory does not already exist
+if not os.path.exists(save_dir):
+    # Create the directory
+    os.makedirs(save_dir)
 
 # Set Firefox's preferences for downloads
 options.set_preference("browser.download.folderList", 2)  # 0 means to download to the desktop, 1 means to download to the default "Downloads" directory, 2 means to use the directory you specify in "browser.download.dir"
@@ -38,19 +64,7 @@ driver.maximize_window()
 driver.get("https://etreasury.td.com/rwd-web/main/accounts/statements")  
 
 input("Please log in manually, wait for the landing page to load then press Enter to continue...")
-startPoint = int(input("If the app has crashed at a certain option(the most recent should be listed in the console prior to the option name in the previously running command prompt); please type the most recent option number-2(otherwise begin from the start by typing 0 and pressing Enter).\n"))
-'''
-def wait_for_spinner_to_disappear(driver, timeout, poll_frequency):
-    end_time = time.time() + timeout
-    while True:
-        try:
-            driver.find_element(By.CSS_SELECTOR, 'div.spinner.loading')
-            time.sleep(poll_frequency)  # Pause a moment before trying again
-            if time.time() > end_time:
-                raise TimeoutException("Spinner did not disappear after waiting for {} seconds.".format(timeout))
-        except NoSuchElementException:
-            break
-'''
+startPoint = load_i_from_file(save_dir)
 # loop over all the options
 i=startPoint
 while True:
@@ -198,7 +212,7 @@ while True:
         if added:
             new_file = os.path.join(path_to_watch, added[0])
             # get option text
-            option_text = account_number + "_" + "20230531_" + str(i)
+            option_text = account_number + "_" + date_str + "_" + str(i)
             new_filename = os.path.join(path_to_watch, option_text + ".pdf")
             os.rename(new_file, new_filename)
             print("Saved account file:", option_text + ".pdf")
@@ -208,14 +222,15 @@ while True:
         # go back to the original page (or however you want to navigate)
         close_button = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'close_dialog')))
         close_button.click()
-        
+        save_i_to_file(i, save_dir)
+
         i += 1
     except Exception as e:
         print(f"An unexpected exception of type {type(e).__name__} occurred.")
         i += 1
         print(e.args)
     if(i == num_options-1):
-        break;
+        break
 
 #close the driver
 print("Program finished downloading all statements. Program will now exit.")
