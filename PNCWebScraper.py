@@ -36,23 +36,41 @@ driver.get("https://www.treasury.pncbank.com/idp/esec/login.ht")
 
 input("Please log in manually, wait for the landing page to load then press Enter to continue...")
 
+#close_button = driver.find_element(By.ID, 'splash-91626-close-button')
+#driver.execute_script("arguments[0].click();", close_button)
+
 dda_element = driver.find_element(By.ID, 'DDAST')
 driver.execute_script("arguments[0].click();", dda_element)
 
 time.sleep(10)
 
 # locate the select element
-dropdown = driver.execute_script("return document.getElementsByName('account')[0];")
-driver.execute_script("arguments[0].click();", dropdown)
+frame = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'contentIframe')))
+driver.switch_to.frame(frame)
 
-index = 1
+dropdown = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.NAME, 'account')))
+dropdown.click()
+
+index = 1 # because index 0 is the default option "Select an account"
 while True:
     try:
+        # Re-acquire the frame and dropdown element references
+        driver.switch_to.default_content() # first switch back to the main document
+        frame = WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.ID, 'contentIframe')))
+        driver.switch_to.frame(frame) # switch to the frame
+        dropdown = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.NAME, 'account'))) # find the dropdown
+        
         # select option by index using JavaScript
         driver.execute_script("arguments[0].selectedIndex = {}; arguments[0].dispatchEvent(new Event('change'));".format(index), dropdown)
+        
+        time.sleep(5) # give it some time to load the new page, adjust as needed
 
-        time.sleep(1)
+        print_button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.LINK_TEXT, 'Print Statement')))
+        print_button.click()
+
         index += 1
-    except StaleElementReferenceException:
+    except Exception as e: # when there are no more options, we'll get an exception
         print("End of options reached or the page has been refreshed. Loop ended at index: ", index)
+        print("Exception: ", e)
         break
+
