@@ -7,7 +7,15 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.common.exceptions import NoSuchElementException, TimeoutException, StaleElementReferenceException
 import os
+import re
 import time
+from datetime import datetime
+from dateutil.relativedelta import relativedelta
+
+now = datetime.now()
+last_month = now - relativedelta(months=1)
+last_day_of_last_month = (now.replace(day=1) - relativedelta(days=1)).day
+date_str = f"{last_month.month:02d}{last_day_of_last_month:02d}{last_month.year}"
 
 # initialize the driver
 options = Options()
@@ -53,6 +61,8 @@ dropdown.click()
 
 index = 1 # because index 0 is the default option "Select an account"
 while True:
+    path_to_watch = save_dir
+    before = dict ([(f, None) for f in os.listdir (path_to_watch)])
     try:
         # Re-acquire the frame and dropdown element references
         driver.switch_to.default_content() # first switch back to the main document
@@ -65,8 +75,20 @@ while True:
         
         time.sleep(5) # give it some time to load the new page, adjust as needed
 
-        print_button = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.LINK_TEXT, 'Print Statement')))
+        print_button = WebDriverWait(driver, 30).until(EC.element_to_be_clickable((By.LINK_TEXT, 'Print Statement')))
         print_button.click()
+
+        time.sleep(2)
+        after = dict ([(f, None) for f in os.listdir (path_to_watch)])
+        added = [f for f in after if not f in before]
+        if added:
+            new_file = os.path.join(path_to_watch, added[0])
+            account_number = re.search(r'_([0-9]+)_', added[0]).group(1)
+            # get option text
+            option_text = account_number + "_" + date_str + "_" + str(index)
+            new_filename = os.path.join(path_to_watch, option_text + ".pdf")
+            os.rename(new_file, new_filename)
+            print("Saved account file:", option_text + ".pdf")
 
         index += 1
     except Exception as e: # when there are no more options, we'll get an exception
