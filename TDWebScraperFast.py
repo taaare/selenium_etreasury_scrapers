@@ -10,6 +10,11 @@ import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+def save_failed_attempts(i, save_dir):
+    file_path = os.path.join(save_dir, "failed_attempts.txt")
+    with open(file_path, 'a') as file:
+        file.write(f"{i},")
+
 def save_i_to_file(i, save_dir):
     # Use 'w' mode to overwrite the file content with the new value of 'i'
     with open(os.path.join(save_dir, "i.txt"), 'w') as file:
@@ -29,13 +34,19 @@ def load_i_from_file(save_dir):
 now = datetime.now()
 last_month = now - relativedelta(months=1)
 last_day_of_last_month = (now.replace(day=1) - relativedelta(days=1)).day
+first_day_this_month = now.replace(day=1)
+first_day_last_month = first_day_this_month - relativedelta(months=1)
+
 date_str = f"{last_month.month:02d}{last_day_of_last_month:02d}{last_month.year}"
+
+first_date_str = f"{last_month.month:02d}/{first_day_last_month.day:02d}/{last_month.year}"
+last_date_str = f"{last_month.month:02d}/{last_day_of_last_month:02d}/{last_month.year}"
 
 # initialize the driver
 options = Options()
 
 #check if save directory already exists or create it
-dir_name = f"Statements{date_str}"
+dir_name = f"TDStatements{date_str}"
 save_dir = os.path.join(os.getcwd(), dir_name)
 
 # Check if the directory does not already exist
@@ -89,8 +100,21 @@ while True:
         num_options = len(options)
         print(f'The dropdown has {num_options} options.')
 
-        #closes dropdown after counting elements
         ActionChains(driver).move_to_element(dropdown).click().perform()
+
+        time.sleep(1.5)
+
+        # click the outer circle of the date range radio option
+        outer_circle = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'dateRange-radio-option-input_radio-outer-circle')))
+        outer_circle.click()
+
+        first_date_input_field = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'startDate-datepicker')))
+        first_date_input_field.send_keys(first_date_str)
+
+        last_date_input_field = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'endDate-datepicker')))
+        last_date_input_field.send_keys(last_date_str)
+
+        #closes dropdown after counting elements
         time.sleep(1)
         i += 1
 
@@ -109,10 +133,21 @@ while True:
         statements_button = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'navigation_accounts_statements')))
         statements_button.click()
 
+        outer_circle = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'dateRange-radio-option-input_radio-outer-circle')))
+        outer_circle.click()
+
+        first_date_input_field = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'startDate-datepicker')))
+        first_date_input_field.send_keys(first_date_str)
+
+        last_date_input_field = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'endDate-datepicker')))
+        last_date_input_field.send_keys(last_date_str)
+
+        time.sleep(1)
+
         # find the dropdown menu
         dropdown = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'stmtAccountcombobox')))
         dropdown.click()  # click to open the dropdown
-        time.sleep(5)
+        time.sleep(3)
 
         WebDriverWait(driver, 50).until(EC.presence_of_element_located((By.XPATH, '//ol-option[contains(@class, "ol-option option")]')))
         
@@ -191,12 +226,14 @@ while True:
             view_button = WebDriverWait(driver, 10).until(EC.element_to_be_clickable((By.ID, 'btnViewundefined')))
         except NoSuchElementException:
             print(f"No view button for option {i}")
+            save_failed_attempts(i, save_dir)
             close_button = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'close_dialog')))
             close_button.click()
             i += 1
             continue
         except TimeoutException:
             print(f"Timeout while waiting for view button for option {i}")
+            save_failed_attempts(i, save_dir) 
             close_button = WebDriverWait(driver, 50).until(EC.element_to_be_clickable((By.ID, 'close_dialog')))
             close_button.click()
             i += 1
@@ -216,7 +253,6 @@ while True:
             new_filename = os.path.join(path_to_watch, option_text + ".pdf")
             os.rename(new_file, new_filename)
             print("Saved account file:", option_text + ".pdf")
-
 
         # switch back to the original window
         # go back to the original page (or however you want to navigate)

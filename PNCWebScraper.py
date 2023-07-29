@@ -12,15 +12,41 @@ import time
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
+def save_i_to_file(i, save_dir):
+    # Use 'w' mode to overwrite the file content with the new value of 'i'
+    with open(os.path.join(save_dir, "i.txt"), 'w') as file:
+        file.write(str(i))
+
+def load_i_from_file(save_dir):
+    file_path = os.path.join(save_dir, "i.txt")
+    # Check if the file exists
+    if os.path.exists(file_path):
+        # Use 'r' mode to read the file content
+        with open(file_path, 'r') as file:
+            content = file.read()
+            return int(content)
+    return 1  # If the file does not exist, return 0
+
 now = datetime.now()
 last_month = now - relativedelta(months=1)
 last_day_of_last_month = (now.replace(day=1) - relativedelta(days=1)).day
+first_day_this_month = now.replace(day=1)
+first_day_last_month = first_day_this_month - relativedelta(months=1)
+
 date_str = f"{last_month.month:02d}{last_day_of_last_month:02d}{last_month.year}"
+
+first_date_str = f"{last_month.month:02d}/{first_day_last_month.day:02d}/{last_month.year}"
+last_date_str = f"{last_month.month:02d}/{last_day_of_last_month:02d}/{last_month.year}"
 
 # initialize the driver
 options = Options()
 
-save_dir = r"C:\NxID\Dad\Statements"
+dir_name = f"PNCStatements{date_str}"
+save_dir = os.path.join(os.getcwd(), dir_name)
+
+if not os.path.exists(save_dir):
+    # Create the directory
+    os.makedirs(save_dir)
 
 # Set Firefox's preferences for downloads
 options.set_preference("browser.download.folderList", 2)
@@ -59,7 +85,9 @@ driver.switch_to.frame(frame)
 dropdown = WebDriverWait(driver, 20).until(EC.visibility_of_element_located((By.NAME, 'account')))
 dropdown.click()
 
-index = 1 # because index 0 is the default option "Select an account"
+startPoint = load_i_from_file(save_dir)
+
+index = startPoint # because index 0 is the default option "Select an account"
 while True:
     path_to_watch = save_dir
     before = dict ([(f, None) for f in os.listdir (path_to_watch)])
@@ -89,7 +117,7 @@ while True:
             new_filename = os.path.join(path_to_watch, option_text + ".pdf")
             os.rename(new_file, new_filename)
             print("Saved account file:", option_text + ".pdf")
-
+        save_i_to_file(index, save_dir)
         index += 1
     except Exception as e: # when there are no more options, we'll get an exception
         print("End of options reached or the page has been refreshed. Loop ended at index: ", index)
